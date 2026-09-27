@@ -7,6 +7,7 @@ from pprint import pprint
 import requests
 import random
 import chromadb
+import json
 
 
 
@@ -31,7 +32,7 @@ client = OpenAI(api_key=api_key)
 # ------------------------------
 # Document
 # ------------------------------
-document_overview = """
+document_overview ="""
 ---
 document_type: candidate_facts_overview
 candidate_name: Hector Altamira
@@ -449,6 +450,73 @@ collection.add(
 
 pprint(collection.get())
 
+# ------------------------------
+# Tools
+# ------------------------------
+tools = []
+
+pushover_user = os.getenv("PUSHOVER_USER")
+pushover_token = os.getenv("PUSHOVER_TOKEN")
+pushover_url = "https://api.pushover.net/1/messages.json"
+
+# Do not print secrets/tokens in notebook output
+if not pushover_user or not pushover_token:
+    raise Exception("PUSHOVER_USER or PUSHOVER_TOKEN missing. Ensure .env contains them, load_dotenv() ran in this kernel, and names match exactly.")
+
+# Create send_notification function with basic error handling
+def send_notification(message: str):
+    payload = {"user": pushover_user, "token": pushover_token, "message": message}
+    try:
+        resp = requests.post(pushover_url, data=payload, timeout=10)
+        resp.raise_for_status()
+    except Exception as e:
+        # Raise a clearer error for callers to handle/log
+        raise RuntimeError(f"Pushover request failed: {e}")
+#Describe Pushover as an LLM tool
+send_notification_function = {
+    "name": "send_notification",
+    "description": "Sends a push notification to the real-world version of you via Pushover on mobile. Use this to alert the real-world version of you about important events, completed tasks, or time-sensitive information.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "message": {
+                "type": "string",
+                "description": "The notification message to send to the user's device"
+            }
+        },
+        "required": ["message"]
+    }
+}
+
+#Add Pushover to the list of tools for the LLM
+tools.append({"type": "function", "function":send_notification_function})
+
+#Simulates rolling a single six-sided dice
+def dice_roll():
+    result = random.randint(1,6)
+    return result
+
+#Describe function for the  LLM
+roll_dice_function = {
+    "name": "dice_roll",
+    "description": "Simulates rolling a single six-sided dice and returns the result. Use this when the user wants to roll a dice for games, decisions, or random number generation",
+    "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+    }
+}
+
+#Add function to list of tools of LLM
+tools.append({"type":"function", "function":roll_dice_function})
+
+
+
+
+
+# ------------------------------
+# Tool Handler
+# ------------------------------
 
 
 # ------------------------------

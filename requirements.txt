@@ -2,3 +2,4 @@ openai
 gradio
 python-dotenv
 chromadb
+requests
