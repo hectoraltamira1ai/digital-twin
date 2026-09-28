@@ -19,14 +19,14 @@ import json
 load_dotenv()
 OPEN_AI_API_KEY = os.getenv("OPENAI_API_KEY")
 if OPEN_AI_API_KEY is None:
-    raise Exception("OPENAI_API_KEY is missing")
+	raise Exception("OPENAI_API_KEY is missing")
 client = OpenAI(api_key=OPEN_AI_API_KEY)
 
 # Retrieve key directly from environment variable
 """
 api_key = os.environ.get("OPENAI_API_KEY")
 if not api_key:
-    raise Exception("OPENAI_API_KEY is missing")
+	raise Exception("OPENAI_API_KEY is missing")
 client = OpenAI(api_key=api_key)
 """
 # ------------------------------
@@ -349,31 +349,31 @@ primary_skills:
 # Chunking Function
 # ------------------------------
 def split_text_into_chunks(text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]:
-    # 1) Define preferred split points (from strongest to weakest boundary).
-    boundaries = ["\n\n", "\n", ".", "?", "!", ",", " "]
+	# 1) Define preferred split points (from strongest to weakest boundary).
+	boundaries = ["\n\n", "\n", ".", "?", "!", ",", " "]
 
-    # 2) Helper: move chunk end to a natural boundary when possible.
-    def find_boundary(start: int, end: int) -> int:
-        midpoint = start + (chunk_size // 2)
-        for boundary in boundaries:
-            pos = text.rfind(boundary, midpoint, end)
-            if pos != -1:
-                return pos + len(boundary)
-        return end
+	# 2) Helper: move chunk end to a natural boundary when possible.
+	def find_boundary(start: int, end: int) -> int:
+		midpoint = start + (chunk_size // 2)
+		for boundary in boundaries:
+			pos = text.rfind(boundary, midpoint, end)
+			if pos != -1:
+				return pos + len(boundary)
+		return end
 
-    # 3) Main loop: build chunks with overlap to preserve context.
-    chunks: list[str] = []
-    start = 0
+	# 3) Main loop: build chunks with overlap to preserve context.
+	chunks: list[str] = []
+	start = 0
 
-    while start < len(text):
-        end = min(start + chunk_size, len(text))
-        if end < len(text):
-            end = find_boundary(start, end)
-        chunks.append(text[start:end])
-        if end >= len(text):
-            break
-        start = max(start + 1, end - overlap)
-    return chunks
+	while start < len(text):
+		end = min(start + chunk_size, len(text))
+		if end < len(text):
+			end = find_boundary(start, end)
+		chunks.append(text[start:end])
+		if end >= len(text):
+			break
+		start = max(start + 1, end - overlap)
+	return chunks
 
 
 # ------------------------------
@@ -394,22 +394,22 @@ ids = []
 metadatas = []
 
 for doc in documents:
-    #Prepare the lists
-    chunks_ = split_text_into_chunks(doc["text"], chunk_size=300, overlap =30)
-    ids_ = [str(uuid.uuid4()) for _ in range(len(chunks_))]
-    metadatas_ = [{"source": doc["source"], "chunk_index": i} for i in range(len(chunks_))]
+	#Prepare the lists
+	chunks_ = split_text_into_chunks(doc["text"], chunk_size=300, overlap =30)
+	ids_ = [str(uuid.uuid4()) for _ in range(len(chunks_))]
+	metadatas_ = [{"source": doc["source"], "chunk_index": i} for i in range(len(chunks_))]
 
-    #Add to main lists
-    chunks.extend(chunks_)
-    ids.extend(ids_)
-    metadatas.extend(metadatas_)
+	#Add to main lists
+	chunks.extend(chunks_)
+	ids.extend(ids_)
+	metadatas.extend(metadatas_)
 #Print for logging/debugging
 print(f"Created {len(chunks)} chunks:\n")
 
 for i, chunk in enumerate(chunks):
-    print(f"Chunk {i+1} (ID: {ids[i]}, Source: {metadatas[i]['source']}, Index: {metadatas[i]['chunk_index']}, Length: {len(chunk)}):")
-    print(chunk)
-    print()
+	print(f"Chunk {i+1} (ID: {ids[i]}, Source: {metadatas[i]['source']}, Index: {metadatas[i]['chunk_index']}, Length: {len(chunk)}):")
+	print(chunk)
+	print()
 
 #Generate embeddings for all chunks
 response = client.embeddings.create(
@@ -438,7 +438,7 @@ chroma_client = chromadb.PersistentClient(path ="./chroma_db_twin")
 #Get or Create + Empty the collection before adding new data (for testing purposes)
 collection = chroma_client.get_or_create_collection(name="digital_twin")
 if collection.get()["ids"]:
-    collection.delete(collection.get()["ids"])
+	collection.delete(collection.get()["ids"])
 
 #Adding data to ChromaDB collection
 collection.add(
@@ -461,31 +461,31 @@ pushover_url = "https://api.pushover.net/1/messages.json"
 
 # Do not print secrets/tokens in notebook output
 if not pushover_user or not pushover_token:
-    raise Exception("PUSHOVER_USER or PUSHOVER_TOKEN missing. Ensure .env contains them, load_dotenv() ran in this kernel, and names match exactly.")
+	raise Exception("PUSHOVER_USER or PUSHOVER_TOKEN missing. Ensure .env contains them, load_dotenv() ran in this kernel, and names match exactly.")
 
 # Create send_notification function with basic error handling
 def send_notification(message: str):
-    payload = {"user": pushover_user, "token": pushover_token, "message": message}
-    try:
-        resp = requests.post(pushover_url, data=payload, timeout=10)
-        resp.raise_for_status()
-    except Exception as e:
-        # Raise a clearer error for callers to handle/log
-        raise RuntimeError(f"Pushover request failed: {e}")
+	payload = {"user": pushover_user, "token": pushover_token, "message": message}
+	try:
+		resp = requests.post(pushover_url, data=payload, timeout=10)
+		resp.raise_for_status()
+	except Exception as e:
+		# Raise a clearer error for callers to handle/log
+		raise RuntimeError(f"Pushover request failed: {e}")
 #Describe Pushover as an LLM tool
 send_notification_function = {
-    "name": "send_notification",
-    "description": "Sends a push notification to the real-world version of you via Pushover on mobile. Use this to alert the real-world version of you about important events, completed tasks, or time-sensitive information.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "message": {
-                "type": "string",
-                "description": "The notification message to send to the user's device"
-            }
-        },
-        "required": ["message"]
-    }
+	"name": "send_notification",
+	"description": "Sends a push notification to the real-world version of you via Pushover on mobile. Use this to alert the real-world version of you about important events, completed tasks, or time-sensitive information.",
+	"parameters": {
+		"type": "object",
+		"properties": {
+			"message": {
+				"type": "string",
+				"description": "The notification message to send to the user's device"
+			}
+		},
+		"required": ["message"]
+	}
 }
 
 #Add Pushover to the list of tools for the LLM
@@ -493,30 +493,52 @@ tools.append({"type": "function", "function":send_notification_function})
 
 #Simulates rolling a single six-sided dice
 def dice_roll():
-    result = random.randint(1,6)
-    return result
+	result = random.randint(1,6)
+	return result
 
 #Describe function for the  LLM
 roll_dice_function = {
-    "name": "dice_roll",
-    "description": "Simulates rolling a single six-sided dice and returns the result. Use this when the user wants to roll a dice for games, decisions, or random number generation",
-    "parameters": {
-        "type": "object",
-        "properties": {},
-        "required": []
-    }
+	"name": "dice_roll",
+	"description": "Simulates rolling a single six-sided dice and returns the result. Use this when the user wants to roll a dice for games, decisions, or random number generation",
+	"parameters": {
+		"type": "object",
+		"properties": {},
+		"required": []
+	}
 }
 
 #Add function to list of tools of LLM
 tools.append({"type":"function", "function":roll_dice_function})
 
-
-
-
-
 # ------------------------------
 # Tool Handler
 # ------------------------------
+def handle_tool_call(tool_calls):
+	tool_results = []
+
+	for tool_call in tool_calls:  # handle every tool call the model requested
+		function_name = tool_call.function.name
+		args = json.loads(tool_call.function.arguments)  # arguments are JSON
+		# print(f"Calling function {function_name}")
+
+		if function_name == "send_notification":
+			send_notification(args["message"])
+			content = f"Notification sent: {args['message']}"
+		elif function_name == "dice_roll":
+			content = f"Dice rolled: {dice_roll()}"
+		# elif function_name == "insert_function_name_3":
+		#     content = insert_function_name_3(args["message"])
+		else:
+			content = f"Unknown function: {function_name}"
+
+		tool_call_result = {
+			"role": "tool",
+			"content": content,
+			"tool_call_id": tool_call.id
+		}
+		tool_results.append(tool_call_result)
+
+	return tool_results
 
 
 # ------------------------------
@@ -566,45 +588,33 @@ def respond_ai(message, history):
 		n_results=15
 	)
 
-
-	retrieved_context = "\n\n".join(results["documents"][0])
-
-	system_message = f"""
-Answer using only the context below.
-
-When the question asks for a list:
-- Find every matching item in the context.
-- Return every item; do not stop after the first few.
-- Include items presented as bullets, headings, or sentences.
-- Do not omit an item because it appears in a different chunk.
-- Do not invent items that are not in the context.
-- If the context is incomplete, say that the list may be incomplete.
-
-Return one item per line.
-
-Context:
-{retrieved_context}
-"""
 	#RAG Stich retrieved chunks together to provide context for the response
 	context = "\n---------\n".join(results["documents"][0])
+	#Print for debugging/logging
 	print("\n====================================")
 	print(f"User message:\n{message}\n")
 	print("***Retrieved Chunks:")
 	for a, b in zip(results["documents"][0], results["metadatas"][0]):
 		print("------------------------------------")
 		print(f"<<Document {b['source']} --- Chunk {b['chunk_index']}>>\n{a}\n")
+
 	#Update a system message with context (for this conversation turn)
 	system_message_enhanced = system_message + "\n\nContext:\n" + context
-	messages = [
-    {"role": "system", "content": system_message},
-    *history,
-    {"role": "user", "content": message},
-]
+
+	#Build message for this turn
+	message = [
+		{"role": "system", "content": system_message_enhanced}] + history + [{"role": "user", "content": message}]
+
+	#Call LLM
 	response = client.chat.completions.create(
-	model="gpt-4o-mini",
-	messages=messages
-)
-	reply = response.choices[0].message.content
+		model="gpt-4o-mini",
+		messages=message,
+		tools=tools
+	)
+	message = response.choices[0].message
+	return(message.content)
+	#reply = response.choices[0].message.content
+	#return reply
 	print("Reply:\n", reply) #Debugging line to see what the model is replying with.
 	return reply
 
