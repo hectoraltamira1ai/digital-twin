@@ -19,7 +19,7 @@ import json
 load_dotenv()
 OPEN_AI_API_KEY = os.getenv("OPENAI_API_KEY")
 if OPEN_AI_API_KEY is None:
-	raise Exception("OPENAI_API_KEY is missing")
+	raise Exception("API key is missing")
 client = OpenAI(api_key=OPEN_AI_API_KEY)
 
 # Retrieve key directly from environment variable
@@ -459,19 +459,11 @@ pushover_user = os.getenv("PUSHOVER_USER")
 pushover_token = os.getenv("PUSHOVER_TOKEN")
 pushover_url = "https://api.pushover.net/1/messages.json"
 
-# Do not print secrets/tokens in notebook output
-if not pushover_user or not pushover_token:
-	raise Exception("PUSHOVER_USER or PUSHOVER_TOKEN missing. Ensure .env contains them, load_dotenv() ran in this kernel, and names match exactly.")
-
-# Create send_notification function with basic error handling
+#Create send_notification function
 def send_notification(message: str):
 	payload = {"user": pushover_user, "token": pushover_token, "message": message}
-	try:
-		resp = requests.post(pushover_url, data=payload, timeout=10)
-		resp.raise_for_status()
-	except Exception as e:
-		# Raise a clearer error for callers to handle/log
-		raise RuntimeError(f"Pushover request failed: {e}")
+	requests.post(pushover_url, data=payload)
+
 #Describe Pushover as an LLM tool
 send_notification_function = {
 	"name": "send_notification",
@@ -480,16 +472,14 @@ send_notification_function = {
 		"type": "object",
 		"properties": {
 			"message": {
-				"type": "string",
-				"description": "The notification message to send to the user's device"
-			}
+				"type": "string", "description": "The notification message to send to the user's device"}
 		},
 		"required": ["message"]
 	}
 }
 
 #Add Pushover to the list of tools for the LLM
-tools.append({"type": "function", "function":send_notification_function})
+tools.append({"type":"function", "function":send_notification_function})
 
 #Simulates rolling a single six-sided dice
 def dice_roll():
@@ -519,8 +509,9 @@ def handle_tool_call(tool_calls):
 	for tool_call in tool_calls:  # handle every tool call the model requested
 		function_name = tool_call.function.name
 		args = json.loads(tool_call.function.arguments)  # arguments are JSON
-		# print(f"Calling function {function_name}")
+		# print(f"Calling function {function_name}") # For future debugging ;)
 
+		#Route to the appropriate function based on function_name
 		if function_name == "send_notification":
 			send_notification(args["message"])
 			content = f"Notification sent: {args['message']}"
@@ -528,6 +519,7 @@ def handle_tool_call(tool_calls):
 			content = f"Dice rolled: {dice_roll()}"
 		# elif function_name == "insert_function_name_3":
 		#     content = insert_function_name_3(args["message"])
+		#....
 		else:
 			content = f"Unknown function: {function_name}"
 
@@ -581,13 +573,11 @@ def respond_ai(message, history):
 		input = [message]
 	)
 	query_embedding = response.data[0].embedding
-
 	#RAG Search ChromaDB
 	results = collection.query(
 		query_embeddings=[query_embedding],
 		n_results=15
 	)
-
 	#RAG Stich retrieved chunks together to provide context for the response
 	context = "\n---------\n".join(results["documents"][0])
 	#Print for debugging/logging
@@ -597,26 +587,33 @@ def respond_ai(message, history):
 	for a, b in zip(results["documents"][0], results["metadatas"][0]):
 		print("------------------------------------")
 		print(f"<<Document {b['source']} --- Chunk {b['chunk_index']}>>\n{a}\n")
-
 	#Update a system message with context (for this conversation turn)
 	system_message_enhanced = system_message + "\n\nContext:\n" + context
-
 	#Build message for this turn
-	message = [
+	messages = [
 		{"role": "system", "content": system_message_enhanced}] + history + [{"role": "user", "content": message}]
-
 	#Call LLM
 	response = client.chat.completions.create(
-		model="gpt-4o-mini",
-		messages=message,
+		model="gpt-4.1-mini",
+		messages=messages,
 		tools=tools
 	)
 	message = response.choices[0].message
+#Check if model wants to call a tool
+	while message.tool_calls:
+		pprint(message.tool_calls)
+		tool_results = handle_tool_call(message.tool_calls) #whole list of tool call results
+		messages.append(message)
+		messages.extend(tool_results) #Changed from append to extend to add all tool results to the messages list
+		response = client.chat.completions.create(
+			model="gpt-4.1-mini",
+			messages=messages,
+			tools=tools
+		)
+		message = response.choices[0].message
+		#Note: maybe consider adding protection from  infinite consecutive tool calls.
 	return(message.content)
-	#reply = response.choices[0].message.content
-	#return reply
-	print("Reply:\n", reply) #Debugging line to see what the model is replying with.
-	return reply
+
 
 # ------------------------------
 # Launch Gradio
