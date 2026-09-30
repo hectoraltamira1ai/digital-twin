@@ -1,6 +1,13 @@
+try:
+	import nest_asyncio
+	nest_asyncio.apply()
+except Exception:
+	# nest_asyncio is optional; continue if it's not installed or fails to apply
+	pass
+
 import os
 from openai import OpenAI
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 import gradio as gr
 import uuid
 from pprint import pprint
@@ -10,25 +17,24 @@ import chromadb
 import json
 
 
-
-
 # ------------------------------
 # Setup
 # ------------------------------
 
-load_dotenv()
-OPEN_AI_API_KEY = os.getenv("OPENAI_API_KEY")
-if OPEN_AI_API_KEY is None:
+#load_dotenv()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if OPENAI_API_KEY is None:
 	raise Exception("API key is missing")
-client = OpenAI(api_key=OPEN_AI_API_KEY)
+#client = OpenAI()
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Retrieve key directly from environment variable
-"""
-api_key = os.environ.get("OPENAI_API_KEY")
-if not api_key:
-	raise Exception("OPENAI_API_KEY is missing")
-client = OpenAI(api_key=api_key)
-"""
+
+#api_key = os.environ.get("OPENAI_API_KEY")
+#if not api_key:
+#raise Exception("OPENAI_API_KEY is missing")
+#client = OpenAI(api_key=api_key)
+
 # ------------------------------
 # Document
 # ------------------------------
@@ -475,7 +481,9 @@ send_notification_function = {
 		"type": "object",
 		"properties": {
 			"message": {
-				"type": "string", "description": "The notification message to send to the user's device"}
+				"type": "string",
+				"description": "The notification message to send to the user's device"
+			}
 		},
 		"required": ["message"]
 	}
@@ -624,5 +632,8 @@ def respond_ai(message, history):
 # Launch Gradio
 # ------------------------------
 
-gr.ChatInterface(fn=respond_ai).launch(inbrowser=True) #share=True to make it public
+#gr.ChatInterface(fn=respond_ai).launch()
+demo = gr.ChatInterface(fn=respond_ai)
 
+if __name__ == "__main__":
+	demo.launch()
