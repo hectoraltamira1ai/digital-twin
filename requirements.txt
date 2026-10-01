@@ -3,4 +3,4 @@ gradio
 python-dotenv
 chromadb
 requests
-nest_asyncio
+

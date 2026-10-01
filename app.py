@@ -1,10 +1,3 @@
-try:
-	import nest_asyncio
-	nest_asyncio.apply()
-except Exception:
-	# nest_asyncio is optional; continue if it's not installed or fails to apply
-	pass
-
 import os
 from openai import OpenAI
 #from dotenv import load_dotenv
@@ -366,11 +359,9 @@ def split_text_into_chunks(text: str, chunk_size: int = 500, overlap: int = 50) 
 			if pos != -1:
 				return pos + len(boundary)
 		return end
-
 	# 3) Main loop: build chunks with overlap to preserve context.
 	chunks: list[str] = []
 	start = 0
-
 	while start < len(text):
 		end = min(start + chunk_size, len(text))
 		if end < len(text):
@@ -532,14 +523,12 @@ def handle_tool_call(tool_calls):
 		#....
 		else:
 			content = f"Unknown function: {function_name}"
-
 		tool_call_result = {
 			"role": "tool",
 			"content": content,
 			"tool_call_id": tool_call.id
 		}
 		tool_results.append(tool_call_result)
-
 	return tool_results
 
 
@@ -603,8 +592,7 @@ def respond_ai(message, history):
 	#Update a system message with context (for this conversation turn)
 	system_message_enhanced = system_message + "\n\nContext:\n" + context
 	#Build message for this turn
-	messages = [
-		{"role": "system", "content": system_message_enhanced}] + history + [{"role": "user", "content": message}]
+	messages = [{"role": "system", "content": system_message_enhanced}] + history + [{"role": "user", "content": message}]
 	#Call LLM
 	response = client.chat.completions.create(
 		model="gpt-4.1-mini",
@@ -612,7 +600,7 @@ def respond_ai(message, history):
 		tools=tools
 	)
 	message = response.choices[0].message
-#Check if model wants to call a tool
+	#Check if model wants to call a tool
 	while message.tool_calls:
 		pprint(message.tool_calls)
 		tool_results = handle_tool_call(message.tool_calls) #whole list of tool call results
@@ -633,7 +621,10 @@ def respond_ai(message, history):
 # ------------------------------
 
 #gr.ChatInterface(fn=respond_ai).launch()
-demo = gr.ChatInterface(fn=respond_ai)
+
+demo = gr.ChatInterface(fn=respond_ai, title="Hector Altamira's Digital Twin", chatbot=gr.Chatbot(avatar_images=(None, "20160802_111340.jpeg")), description="Ask questions about Hector Altamira's career, skills, and experiences. The digital twin will provide accurate information based on the provided context.", examples=["What are Hector Altamira's primary skills?", "Can you summarize Hector Altamira's career history?", "What are Hector Altamira's hobbies and personal interests?"]).launch()
 
 if __name__ == "__main__":
 	demo.launch()
+
+
